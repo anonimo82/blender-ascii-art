@@ -1,1 +1,14 @@
 *.pyc
+__pycache__/
+*.blender
+*.blend1
+*.blend2
+*~
+.DS_Store
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.txt
