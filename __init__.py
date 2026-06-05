@@ -10,11 +10,10 @@ bl_info = {
 }
 
 if "bpy" in locals():
-    import importlib
-    import sys
-    # Reload the module itself on hot-reload (useful during development)
-    current_module = sys.modules[__name__]
-    importlib.reload(current_module)
+    # Single-file addon: Blender handles the reload automatically.
+    # Calling importlib.reload(__name__) here would cause infinite recursion
+    # because the module re-executes this same block on every reload.
+    pass
 else:
     import bpy
 
@@ -93,8 +92,11 @@ class ASCIIGenerator:
             self._use_numpy = False
 
         # Calculate dimensions
+        # FIX #C: clamp new_height to at least 1 to avoid ZeroDivisionError
+        # on extreme combinations of aspect ratio and font_ratio (e.g. very
+        # wide panoramic images with font_ratio at its minimum of 0.1).
         aspect_ratio = self.height / self.width
-        self.new_height = int(new_width * aspect_ratio * font_ratio)
+        self.new_height = max(1, int(new_width * aspect_ratio * font_ratio))
         self.step_x = self.width / new_width
         self.step_y = self.height / self.new_height
 
@@ -256,15 +258,19 @@ class ASCIIGenerator:
                     # FIX #4: pass both radii
                     magnitude, angle = self.apply_sobel_filter(cx, cy, d_x, d_y)
 
-                    if magnitude > edge_threshold:
-                        edge_char = self.angle_to_char(angle)
-
-                        # FIX #2: blend edge_char and fill_char using edge_weight
-                        # A simple threshold blend: above 0.5 → edge char wins
-                        if edge_weight >= 0.5:
-                            row += edge_char
-                        else:
-                            row += fill_char
+                    # FIX #A: edge_weight now acts as a continuous multiplier on
+                    # the effective threshold rather than a binary switch.
+                    #
+                    #   edge_weight = 1.0 → effective_threshold = 0.0
+                    #                       (every detected edge wins)
+                    #   edge_weight = 0.5 → effective_threshold = edge_threshold / 2
+                    #   edge_weight = 0.0 → effective_threshold = edge_threshold
+                    #                       (edge chars never shown; all fill)
+                    #
+                    # This makes the slider meaningful across its whole range.
+                    effective_threshold = edge_threshold * (1.0 - edge_weight)
+                    if magnitude > effective_threshold:
+                        row += self.angle_to_char(angle)
                         continue
 
                 row += fill_char
