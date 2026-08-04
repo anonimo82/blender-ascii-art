@@ -379,7 +379,7 @@ class ASCIIART_PG_properties(bpy.types.PropertyGroup):
     invert_colors: bpy.props.BoolProperty(
         name="Invert Colors",
         default=False,
-        description="Invert for light backgrounds (white text on black)"
+        description="Reverse the character mapping for light-background output"
     )
 
     font_ratio: bpy.props.FloatProperty(
